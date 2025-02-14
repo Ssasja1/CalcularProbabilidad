@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calificaciones</title>
+    <link rel="stylesheet" href="EstilosProbabilidad.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Calificaciones</h2>
+        <table id="tabla-calificaciones">
+            <thead>
+                <tr>
+                    <th>Asignatura</th>
+                    <th>Primer Parcial</th>
+                    <th>Segundo Parcial</th>
+                    <th>Tercer Parcial</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Se agregarán filas dinámicamente -->
+            </tbody>
+        </table>
+        <button class="boton-agregar" onclick="agregarMateria()">➕ Agregar Materia</button>
+
+        <p id="probabilidad">Probabilidad de aprobación: 0%</p>
+    </div>
+
+    <script>
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Obtener el parámetro 'id_usuario' de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const idUsuario = urlParams.get("id_usuario");
+
+    if (idUsuario) {
+        cargarCalificaciones(idUsuario);
+    }
+
+    function cargarCalificaciones(id) {
+        fetch(`../php/calificaciones.php?id_usuario=${id}`)
+            .then(response => response.json())
+            .then(data => {
+                const tabla = document.querySelector("#tabla-calificaciones tbody");
+                tabla.innerHTML = ""; // Limpiar la tabla antes de insertar datos nuevos
+
+                if (data.length === 0) {
+                    tabla.innerHTML = "<tr><td colspan='6'>No hay registros. Agrega materias.</td></tr>";
+                } else {
+                    data.forEach(materia => {
+                        let fila = `
+                            <tr>
+                                <td>${materia.nombre_materia}</td>
+                                <td><input type="number" class="calificacion" value="${materia.primer_parcial || ''}" min="0" max="100"></td>
+                                <td><input type="number" class="calificacion" value="${materia.segundo_parcial || ''}" min="0" max="100"></td>
+                                <td><input type="number" class="calificacion" value="${materia.tercer_parcial || ''}" min="0" max="100"></td>
+                                <td class="estado">Pendiente</td>
+                                <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
+                            </tr>
+                        `;
+                        tabla.innerHTML += fila;
+                    });
+                }
+            })
+            .catch(error => console.error("Error al obtener calificaciones:", error));
+    }
+});
+
+        const probabilidadAprobacionMateria = 31 / 101;
+
+        function calcularEstado(button) {
+            let row = button.closest("tr");
+            let inputs = row.querySelectorAll(".calificacion");
+            let estadoCell = row.querySelector(".estado");
+
+            let calificaciones = Array.from(inputs).map(input => parseFloat(input.value)).filter(val => !isNaN(val));
+
+            if (calificaciones.length < 3) {
+                estadoCell.textContent = "Faltan calificaciones";
+                estadoCell.style.color = "black";
+                calcularProbabilidad();
+                return;
+            }
+
+            let aprobados = calificaciones.filter(nota => nota >= 70).length;
+            let reprobados = calificaciones.filter(nota => nota < 70).length;
+
+            if (reprobados === 3) {
+                estadoCell.textContent = "Reprobado";
+                estadoCell.style.color = "red";
+            } else if (reprobados > 0) {
+                estadoCell.textContent = "Presentar Final";
+                estadoCell.style.color = "orange";
+            } else {
+                estadoCell.textContent = "Aprobado";
+                estadoCell.style.color = "green";
+            }
+
+            calcularProbabilidad();
+        }
+
+        function agregarMateria() {
+            let tbody = document.querySelector("tbody");
+            let nuevaFila = document.createElement("tr");
+
+            nuevaFila.innerHTML = `
+                <td><input type="text" placeholder="Nueva Materia"></td>
+                <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
+                <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
+                <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
+                <td class="estado">Pendiente</td>
+                <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
+            `;
+
+            tbody.appendChild(nuevaFila);
+            calcularProbabilidad();
+        }
+
+        function validarRango(input) {
+            let valor = parseFloat(input.value);
+            if (isNaN(valor) || valor < 0 || valor > 100) {
+                alert("Ingresa un valor entre 0 y 100");
+                input.value = "";
+            }
+        }
+
+        function calcularProbabilidad() {
+            let filas = document.querySelectorAll("tbody tr");
+            let materiasValidas = Array.from(filas).filter(fila => {
+                let estado = fila.querySelector(".estado").textContent;
+                return estado !== "Aprobado" && estado !== "Reprobado"; // Excluye materias aprobadas/reprobadas
+            });
+
+            let totalMaterias = materiasValidas.length;
+
+            if (totalMaterias === 0) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 0%";
+                return;
+            }
+
+            let todasAprobadas = true;
+            let todasReprobadas = true;
+            let materiasAprobadas = 0;
+
+            materiasValidas.forEach(fila => {
+                let calificaciones = Array.from(fila.querySelectorAll(".calificacion"))
+                    .map(input => parseFloat(input.value))
+                    .filter(val => !isNaN(val));
+
+                if (calificaciones.length < 3) {
+                    todasAprobadas = false;
+                    todasReprobadas = false;
+                    return;
+                }
+
+                if (calificaciones.every(nota => nota >= 70)) {
+                    materiasAprobadas++;
+                } else {
+                    todasAprobadas = false;
+                }
+
+                if (calificaciones.some(nota => nota >= 70)) {
+                    todasReprobadas = false;
+                }
+            });
+
+            if (todasAprobadas) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 100%";
+            } else if (todasReprobadas) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 0%";
+            } else {
+                let p = probabilidadAprobacionMateria;
+                let q = 1 - p;
+                let probabilidad = binomialProbability(totalMaterias, materiasAprobadas, p, q);
+                document.getElementById("probabilidad").textContent = `Probabilidad de aprobación: ${probabilidad.toFixed(2)}%`;
+            }
+        }
+
+        function binomialProbability(n, k, p, q) {
+            return binomialCoef(n, k) * Math.pow(p, k) * Math.pow(q, n - k) * 100;
+        }
+
+        function binomialCoef(n, k) {
+            if (k === 0 || k === n) return 1;
+            let coef = 1;
+            for (let i = 0; i < k; i++) {
+                coef *= (n - i) / (i + 1);
+            }
+            return coef;
+        }
+    </script>
+</body>
+</html>

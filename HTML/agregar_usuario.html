@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Usuario</title>
+    <link rel="stylesheet" href="../Css/AgregarUsuario.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Agregar Usuario</h2>
+        <form id="formUsuario">
+            <input type="text" id="nombre" placeholder="Nombre" required>
+            <input type="text" id="apellido_paterno" placeholder="Apellido Paterno" required>
+            <input type="text" id="apellido_materno" placeholder="Apellido Materno" required>
+            <input type="text" id="matricula" placeholder="Matrícula" required>
+            <input type="number" id="cuatrimestre" placeholder="Cuatrimestre" required>
+            <input type="text" id="carrera" placeholder="Carrera" required>
+            <button type="submit">Agregar Usuario</button>
+        </form>
+        <p id="mensaje"></p>
+        <button class="boton-volver" onclick="window.location.href='InicioAlumno.html'">Volver a Inicio</button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const formUsuario = document.getElementById("formUsuario");
+
+            if (formUsuario) {
+                formUsuario.addEventListener("submit", function (e) {
+                    e.preventDefault(); // Evita el recargado de página
+
+                    let formData = new FormData();
+                    formData.append("agregar_usuario", true);
+                    formData.append("nombre", document.getElementById("nombre").value);
+                    formData.append("apellido_paterno", document.getElementById("apellido_paterno").value);
+                    formData.append("apellido_materno", document.getElementById("apellido_materno").value);
+                    formData.append("matricula", document.getElementById("matricula").value);
+                    formData.append("cuatrimestre", document.getElementById("cuatrimestre").value);
+                    formData.append("carrera", document.getElementById("carrera").value);
+
+                    // Enviar los datos al backend en usuario.php
+                    fetch("../php/usuario.php", {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        let mensaje = document.getElementById("mensaje");
+                        mensaje.textContent = data.message;
+                        mensaje.style.color = data.success ? "green" : "red";
+
+                        if (data.success) {
+                            setTimeout(() => {
+                                window.location.href = "InicioAlumno.html"; // Redirigir tras éxito
+                            }, 1500);
+                        }
+                    })
+                    .catch(error => console.error("Error:", error));
+                });
+            }
+        });
+    </script>
+</body>
+</html>

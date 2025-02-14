@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alumnos</title>
+    <link rel="stylesheet" href="../Css/InicioAlumno.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Alumnos</h1>
+        <button class="btn btn-registrar" onclick="window.location.href='agregar_usuario.html'">Registrar Alumno</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Matrícula</th>
+                    <th>Nombre</th>
+                    <th>Apellido Paterno</th>
+                    <th>Apellido Materno</th>
+                    <th>Cuatrimestre</th>
+                    <th>Carrera</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaUsuarios">
+                <!-- Aquí se insertarán los datos dinámicamente -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+    function cargarUsuarios() {
+        fetch("../php/usuario.php?listar_usuarios=true")
+            .then(response => response.json())
+            .then(data => {
+                const tabla = document.getElementById("tablaUsuarios");
+                tabla.innerHTML = ""; // Limpiar la tabla antes de agregar nuevos datos
+
+                data.forEach(user => {
+                    let fila = `
+                        <tr>
+                            <td>${user.matricula}</td>
+                            <td>${user.nombre}</td>
+                            <td>${user.apellido_paterno}</td>
+                            <td>${user.apellido_materno}</td>
+                            <td>${user.cuatrimestre}</td>
+                            <td>${user.carrera}</td>
+                            <td><button class="btn btn-perfil" onclick="verPerfil(${user.id_usuario})">Perfil Alumno</button></td>
+                        </tr>
+                    `;
+                    tabla.innerHTML += fila;
+                });
+            })
+            .catch(error => console.error("Error al cargar usuarios:", error));
+    }
+
+    cargarUsuarios();
+});
+
+        function verPerfil(id) {
+    if (!id) {
+        console.error("El id_usuario es undefined o null.");
+        return;
+    }
+    window.location.href = `CalcularProbabilidadDePasar.html?id_usuario=${id}`;
+}
+
+    </script>
+</body>
+</html>
