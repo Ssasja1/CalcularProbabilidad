@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calificaciones</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="script.js"></script>
+</head>
+<body>
+    <h1>Calificaciones</h1>
+    <table id="tablaCalificaciones">
+        <thead>
+            <tr>
+                <th>Asignatura</th>
+                <th>Primer Parcial</th>
+                <th>Segundo Parcial</th>
+                <th>Tercer Parcial</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <button onclick="agregarMateria()">Agregar Materia</button>
+    <p id="probabilidad"></p>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idUsuario = urlParams.get("id_usuario");
+            if (idUsuario) {
+                fetch(`calificaciones.php?id_usuario=${idUsuario}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Error en la respuesta del servidor");
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        cargarCalificaciones(data);
+                    })
+                    .catch(error => console.error("Error al obtener datos:", error));
+            }
+        });
+
+        function cargarCalificaciones(calificaciones) {
+            const tbody = document.querySelector("#tablaCalificaciones tbody");
+            tbody.innerHTML = "";
+            let totalMaterias = 0, materiasAprobadas = 0, materiasPendientes = 0;
+            
+            calificaciones.forEach(calif => {
+                let estado = determinarEstado(calif);
+                let row = `<tr>
+                    <td>${calif.nombre_materia}</td>
+                    <td><input type="number" value="${calif.primer_parcial || ''}" min="0" max="100"></td>
+                    <td><input type="number" value="${calif.segundo_parcial || ''}" min="0" max="100"></td>
+                    <td><input type="number" value="${calif.tercer_parcial || ''}" min="0" max="100"></td>
+                    <td>${estado}</td>
+                    <td><button onclick="actualizarEstado(this)">Actualizar</button></td>
+                </tr>`;
+                tbody.innerHTML += row;
+
+                if (estado === "Aprobado") materiasAprobadas++;
+                if (estado === "Pendiente") materiasPendientes++;
+                totalMaterias++;
+            });
+
+            calcularProbabilidad(totalMaterias, materiasAprobadas, materiasPendientes);
+        }
+
+        function determinarEstado(calif) {
+            let notas = [calif.primer_parcial, calif.segundo_parcial, calif.tercer_parcial].map(n => parseFloat(n) || 0);
+            let aprobadas = notas.filter(n => n >= 70).length;
+            if (aprobadas === 3) return "Aprobado";
+            if (aprobadas === 0) return "Reprobado";
+            return "Pendiente";
+        }
+
+        function calcularProbabilidad(totalMaterias, materiasAprobadas, materiasPendientes) {
+            if (materiasAprobadas === totalMaterias) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 100%";
+                return;
+            }
+            if (materiasAprobadas + materiasPendientes === 0) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 0%";
+                return;
+            }
+            
+            const probabilidadAprobacionMateria = 31 / 101;
+            let p = probabilidadAprobacionMateria;
+            let q = 1 - p;
+            let probabilidad = binomialProbability(totalMaterias, materiasAprobadas, p, q);
+            document.getElementById("probabilidad").textContent = `Probabilidad de aprobación: ${probabilidad.toFixed(2)}%`;
+        }
+
+        function binomialProbability(n, k, p, q) {
+            return binomialCoef(n, k) * Math.pow(p, k) * Math.pow(q, n - k) * 100;
+        }
+
+        function binomialCoef(n, k) {
+            if (k === 0 || k === n) return 1;
+            let coef = 1;
+            for (let i = 0; i < k; i++) {
+                coef *= (n - i) / (i + 1);
+            }
+            return coef;
+        }
+
+        function actualizarEstado(boton) {
+            let fila = boton.parentNode.parentNode;
+            let calif = [fila.cells[1].getElementsByTagName("input")[0].value,
+                         fila.cells[2].getElementsByTagName("input")[0].value,
+                         fila.cells[3].getElementsByTagName("input")[0].value];
+            
+            let aprobadas = calif.filter(n => n >= 70).length;
+            let vacias = calif.filter(n => n === "").length;
+            
+            if (aprobadas === 3) {
+                fila.cells[4].textContent = "Aprobado";
+            } else if (aprobadas === 0 && vacias === 0) {
+                fila.cells[4].textContent = "Reprobado";
+            } else {
+                fila.cells[4].textContent = "Pendiente";
+            }
+            calcularProbabilidad();
+        }
+
+        function agregarMateria() {
+            let tabla = document.getElementById("tablaCalificaciones").getElementsByTagName('tbody')[0];
+            let fila = tabla.insertRow();
+            
+            let celdaMateria = fila.insertCell(0);
+            let celdaP1 = fila.insertCell(1);
+            let celdaP2 = fila.insertCell(2);
+            let celdaP3 = fila.insertCell(3);
+            let celdaEstado = fila.insertCell(4);
+            let celdaBoton = fila.insertCell(5);
+            
+            celdaMateria.innerHTML = `<input type="text" placeholder="Materia">`;
+            celdaP1.innerHTML = `<input type="number" min="0" max="100">`;
+            celdaP2.innerHTML = `<input type="number" min="0" max="100">`;
+            celdaP3.innerHTML = `<input type="number" min="0" max="100">`;
+            celdaEstado.innerHTML = "Pendiente";
+            celdaBoton.innerHTML = `<button onclick="actualizarEstado(this)">Actualizar</button>`;
+        }
+    </script>
+</body>
+</html>

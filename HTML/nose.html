@@ -4,7 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calificaciones</title>
-    <link rel="stylesheet" type="text/css" href="EstilosProbabilidad.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #b0b8bd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            width: 600px;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border-bottom: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        input {
+            width: 50px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        .estado {
+            font-weight: bold;
+        }
+
+        .boton-actualizar, .boton-agregar {
+            background: white;
+            color: blue;
+            border: 1px solid blue;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .boton-actualizar:hover, .boton-agregar:hover {
+            background: blue;
+            color: white;
+        }
+
+        .boton-agregar {
+            margin-top: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        #probabilidad {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -31,43 +111,6 @@
 
     <script>
         const probabilidadAprobacionMateria = 31 / 101;
-
-        document.addEventListener("DOMContentLoaded", function () {
-            const urlParams = new URLSearchParams(window.location.search);
-            const idUsuario = urlParams.get("id_usuario");
-
-            if (idUsuario) {
-                cargarCalificaciones(idUsuario);
-            }
-
-            function cargarCalificaciones(id) {
-                fetch(`../php/calificaciones.php?id_usuario=${id}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const tabla = document.querySelector("#tabla-calificaciones tbody");
-                        tabla.innerHTML = "";
-
-                        if (data.length === 0) {
-                            tabla.innerHTML = "<tr><td colspan='6'>No hay registros. Agrega materias.</td></tr>";
-                        } else {
-                            data.forEach(materia => {
-                                let fila = `
-                                    <tr>
-                                        <td>${materia.nombre_materia}</td>
-                                        <td><input type="number" class="calificacion" value="${materia.primer_parcial || ''}" min="0" max="100"></td>
-                                        <td><input type="number" class="calificacion" value="${materia.segundo_parcial || ''}" min="0" max="100"></td>
-                                        <td><input type="number" class="calificacion" value="${materia.tercer_parcial || ''}" min="0" max="100"></td>
-                                        <td class="estado">Pendiente</td>
-                                        <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
-                                    </tr>
-                                `;
-                                tabla.innerHTML += fila;
-                            });
-                        }
-                    })
-                    .catch(error => console.error("Error al obtener calificaciones:", error));
-            }
-        });
 
         function calcularEstado(button) {
             let row = button.closest("tr");
@@ -128,59 +171,46 @@
         function calcularProbabilidad() {
             let filas = document.querySelectorAll("tbody tr");
             let totalMaterias = filas.length;
-            let aprobadas = 0;
-            let reprobadas = 0;
-            let materiasPendientes = 0;
 
-            filas.forEach(fila => {
-                let estadoCell = fila.querySelector(".estado");
-                if (!estadoCell) return;
-
-                let estado = estadoCell.textContent.trim();
-                if (estado === "Aprobado") aprobadas++;
-                if (estado === "Reprobado") reprobadas++;
-                if (estado === "Pendiente" || estado === "Presentar Final") materiasPendientes++;
-            });
-
-            console.log(`Aprobadas: ${aprobadas}, Reprobadas: ${reprobadas}, Pendientes: ${materiasPendientes}`);
-
-            // Caso 1: Todas las materias están aprobadas
-            if (aprobadas === totalMaterias && totalMaterias > 0) {
-                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 100%";
-                return;
-            }
-
-            // Caso 2: Todas las materias están reprobadas
-            if (reprobadas === totalMaterias) {
+            if (totalMaterias === 0) {
                 document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 0%";
                 return;
             }
 
-            // Verificar si hay materias que cumplen con >=70 en todas sus calificaciones
+            let todasAprobadas = true;
+            let todasReprobadas = true;
             let materiasAprobadas = 0;
+
             filas.forEach(fila => {
                 let calificaciones = Array.from(fila.querySelectorAll(".calificacion"))
                     .map(input => parseFloat(input.value))
                     .filter(val => !isNaN(val));
 
-                if (calificaciones.length === 3 && calificaciones.every(nota => nota >= 70)) {
+                if (calificaciones.length < 3) {
+                    todasAprobadas = false;
+                    todasReprobadas = false;
+                    return;
+                }
+
+                if (calificaciones.every(nota => nota >= 70)) {
                     materiasAprobadas++;
+                } else {
+                    todasAprobadas = false;
+                }
+
+                if (calificaciones.some(nota => nota >= 70)) {
+                    todasReprobadas = false;
                 }
             });
 
-            console.log(`Materias con todas las calificaciones >=70: ${materiasAprobadas}`);
-
-            // Si todas las materias tienen >=70, entonces la probabilidad es 100%
-            if (materiasAprobadas === totalMaterias) {
+            if (todasAprobadas) {
                 document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 100%";
-                return;
-            }
-
-            // Cálculo con probabilidad binomial solo si hay materias pendientes
-            if (materiasPendientes > 0) {
+            } else if (todasReprobadas) {
+                document.getElementById("probabilidad").textContent = "Probabilidad de aprobación: 0%";
+            } else {
                 let p = probabilidadAprobacionMateria;
                 let q = 1 - p;
-                let probabilidad = binomialProbability(materiasPendientes, materiasAprobadas, p, q);
+                let probabilidad = binomialProbability(totalMaterias, materiasAprobadas, p, q);
                 document.getElementById("probabilidad").textContent = `Probabilidad de aprobación: ${probabilidad.toFixed(2)}%`;
             }
         }
