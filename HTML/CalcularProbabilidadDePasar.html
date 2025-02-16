@@ -17,6 +17,7 @@
                     <th>Segundo Parcial</th>
                     <th>Tercer Parcial</th>
                     <th>Estado</th>
+                    <th >Acciones</th>
                     <th>Acción</th>
                 </tr>
             </thead>
@@ -41,32 +42,33 @@
             }
 
             function cargarCalificaciones(id) {
-                fetch(`../php/calificaciones.php?id_usuario=${id}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const tabla = document.querySelector("#tabla-calificaciones tbody");
-                        tabla.innerHTML = "";
+    fetch(`../php/calificaciones.php?id_usuario=${id}`)
+        .then(response => response.json())
+        .then(data => {
+            const tabla = document.querySelector("#tabla-calificaciones tbody");
+            tabla.innerHTML = "";
 
-                        if (data.length === 0) {
-                            tabla.innerHTML = "<tr><td colspan='6'>No hay registros. Agrega materias.</td></tr>";
-                        } else {
-                            data.forEach(materia => {
-                                let fila = `
-                                    <tr>
-                                        <td>${materia.nombre_materia}</td>
-                                        <td><input type="number" class="calificacion" value="${materia.primer_parcial || ''}" min="0" max="100"></td>
-                                        <td><input type="number" class="calificacion" value="${materia.segundo_parcial || ''}" min="0" max="100"></td>
-                                        <td><input type="number" class="calificacion" value="${materia.tercer_parcial || ''}" min="0" max="100"></td>
-                                        <td class="estado">Pendiente</td>
-                                        <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
-                                    </tr>
-                                `;
-                                tabla.innerHTML += fila;
-                            });
-                        }
-                    })
-                    .catch(error => console.error("Error al obtener calificaciones:", error));
+            if (data.length === 0) {
+                tabla.innerHTML = "<tr><td colspan='6'>No hay registros. Agrega materias.</td></tr>";
+            } else {
+                data.forEach(materia => {
+                    let fila = `
+                        <tr>
+                            <td><input type="hidden" class="id-materia" value="${materia.id_materia}"><input type="text" class="nombre-materia" value="${materia.nombre_materia}"></td>
+                            <td><input type="number" class="calificacion" value="${materia.primer_parcial || ''}" min="0" max="100"></td>
+                            <td><input type="number" class="calificacion" value="${materia.segundo_parcial || ''}" min="0" max="100"></td>
+                            <td><input type="number" class="calificacion" value="${materia.tercer_parcial || ''}" min="0" max="100"></td>
+                            <td class="estado">Pendiente</td>
+                            <td><button class="boton-guardar" onclick="guardarMateria(this)">💾 Guardar</button></td>
+                            <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
+                        </tr>
+                    `;
+                    tabla.innerHTML += fila;
+                });
             }
+        })
+        .catch(error => console.error("Error al obtener calificaciones:", error));
+}
         });
 
         function calcularEstado(button) {
@@ -105,18 +107,66 @@
             let nuevaFila = document.createElement("tr");
 
             nuevaFila.innerHTML = `
-                <td><input type="text" placeholder="Nueva Materia"></td>
+            <td><input type="text" class="nombre-materia" placeholder="Nueva Materia"></td>
                 <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
                 <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
                 <td><input type="number" class="calificacion" min="0" max="100" onchange="validarRango(this)"></td>
                 <td class="estado">Pendiente</td>
+                <td> <button class="boton-guardar" onclick="guardarMateria(this)">💾 Guardar</button> </td>
                 <td><button class="boton-actualizar" onclick="calcularEstado(this)">🔄 Actualizar</button></td>
             `;
 
             tbody.appendChild(nuevaFila);
-            calcularProbabilidad();
+            // calcularProbabilidad();
         }
 
+        function guardarMateria(button) {
+    let row = button.closest("tr");
+    let idMateria = row.querySelector(".id-materia")?.value; // Obtener el id_materia si existe
+    let nombreMateriaInput = row.querySelector(".nombre-materia"); // Buscar el input de nombre
+    let nombreMateria = nombreMateriaInput ? nombreMateriaInput.value : row.querySelector("td").textContent.trim(); // Obtener el valor del input o del texto
+    let calificaciones = Array.from(row.querySelectorAll(".calificacion")).map(input => input.value || null);
+
+    if (!nombreMateria) {
+        alert("El nombre de la materia es obligatorio.");
+        return;
+    }
+
+    let idUsuario = new URLSearchParams(window.location.search).get("id_usuario");
+
+    let data = {
+        id_usuario: idUsuario,
+        nombre_materia: nombreMateria,
+        primer_parcial: calificaciones[0],
+        segundo_parcial: calificaciones[1],
+        tercer_parcial: calificaciones[2]
+    };
+
+    // Si hay un id_materia, es una actualización
+    if (idMateria) {
+        data.id_materia = idMateria;
+    }
+
+    // Determinar la URL y el método HTTP según si es una inserción o actualización
+    let url = idMateria ? "../php/actualizar_materia.php" : "../php/guardar_materia.php";
+    let method = idMateria ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(idMateria ? "Materia actualizada correctamente." : "Materia guardada correctamente.");
+            cargarCalificaciones(idUsuario); // Recargar la tabla
+        } else {
+            alert("Error al guardar/actualizar la materia.");
+        }
+    })
+    .catch(error => console.error("Error:", error));
+}
         function validarRango(input) {
             let valor = parseFloat(input.value);
             if (isNaN(valor) || valor < 0 || valor > 100) {
